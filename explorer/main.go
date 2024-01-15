@@ -53,7 +53,7 @@ func init() {
 	// The entry point to a Spin HTTP request using the Go SDK.
 	spinhttp.Handle(func(w http.ResponseWriter, r *http.Request) {
 		logger = log.New(os.Stderr, "", log.LstdFlags)
-		serve(w, r, logger)
+		serve(w, r)
 	})
 }
 
@@ -73,8 +73,8 @@ func getBasePath(h http.Header) string {
 }
 
 // Setup the router and handle the incoming request.
-func serve(w http.ResponseWriter, r *http.Request, logger *log.Logger) {
-	user, pass, err := GetCredentials(logger)
+func serve(w http.ResponseWriter, r *http.Request) {
+	user, pass, err := GetCredentials()
 	if err != nil {
 		logger.Printf("Error getting credentials from KV store: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -107,7 +107,6 @@ func UIHandler(w http.ResponseWriter, _ *http.Request, _ spinhttp.Params) {
 
 // ListKeysHandler is the HTTP handler for a list keys request.
 func ListKeysHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) {
-	logger = log.New(os.Stderr, "", log.LstdFlags)
 	storeName := p.ByName("store")
 
 	store, err := kv.OpenStore(storeName)
@@ -132,7 +131,6 @@ func ListKeysHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) 
 
 // GetKeyHandler is the HTTP handler for a get key request.
 func GetKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) {
-	logger = log.New(os.Stderr, "", log.LstdFlags)
 	storeName := p.ByName("store")
 	key := p.ByName("key")
 	safeKey := DecodeSafeKey(key)
@@ -159,7 +157,6 @@ func GetKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) {
 
 // DeleteKeyHandler is the HTTP handler for a delete key request.
 func DeleteKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) {
-	logger = log.New(os.Stderr, "", log.LstdFlags)
 	storeName := p.ByName("store")
 	key := p.ByName("key")
 	safeKey := DecodeSafeKey(key)
@@ -182,7 +179,6 @@ func DeleteKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params)
 
 // AddKeyHandler is the HTTP handler for an add key/value pair request.
 func AddKeyHandler(w http.ResponseWriter, r *http.Request, p spinhttp.Params) {
-	logger = log.New(os.Stderr, "", log.LstdFlags)
 	storeName := p.ByName("store")
 
 	var input SetRequest
@@ -238,7 +234,7 @@ func BasicAuth(h spinhttp.RouterHandle, requiredUser, requiredPassword string) s
 // CredsOrDefault checks the KV store for a `credentials` key, and expects
 // the value to be `username:password`. If a value is not found, this function
 // will generate a random pair and log it once.
-func GetCredentials(logger *log.Logger) (string, string, error) {
+func GetCredentials() (string, string, error) {
 	store, err := kv.OpenStore("default")
 	if err != nil {
 		logger.Printf("ERROR: cannot open store: %v", err)
