@@ -74,11 +74,15 @@ func getBasePath(h http.Header) string {
 
 // Setup the router and handle the incoming request.
 func serve(w http.ResponseWriter, r *http.Request) {
-	user, pass, err := GetCredentials()
-	if err != nil {
-		logger.Printf("Error getting credentials from KV store: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	user, pass := "", ""
+	if !ShouldSkipAuth() {
+		var err error
+		user, pass, err = GetCredentials()
+		if err != nil {
+			fmt.Fprintf(w, "KV explorer credentials not configured.\n")
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 	}
 
 	spinRoute = getBasePath(r.Header)
@@ -111,16 +115,16 @@ func ListKeysHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) 
 
 	store, err := kv.OpenStore(storeName)
 	if err != nil {
-		logger.Printf("ERROR: cannot open store: %v", err)
+		logger.Printf("ERROR: cannot open store: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	start := time.Now()
 	keys, err := store.GetKeys()
-	logger.Printf("LIST operation took: %s", time.Since(start))
+	logger.Printf("LIST operation took: %s\n", time.Since(start))
 	if err != nil {
-		logger.Printf("ERROR: cannot list keys: %v", err)
+		logger.Printf("ERROR: cannot list keys: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -137,16 +141,16 @@ func GetKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params) {
 
 	store, err := kv.OpenStore(storeName)
 	if err != nil {
-		logger.Printf("ERROR: cannot open store: %v", err)
+		logger.Printf("ERROR: cannot open store: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	start := time.Now()
 	value, err := store.Get(string(safeKey))
-	logger.Printf("GET operation took %s", time.Since(start))
+	logger.Printf("GET operation took %s\n", time.Since(start))
 	if err != nil {
-		logger.Printf("ERROR: cannot get key: ", err)
+		logger.Printf("ERROR: cannot get key: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
 	}
 
@@ -163,16 +167,16 @@ func DeleteKeyHandler(w http.ResponseWriter, _ *http.Request, p spinhttp.Params)
 
 	store, err := kv.OpenStore(storeName)
 	if err != nil {
-		logger.Printf("ERROR: cannot open store: %v", err)
+		logger.Printf("ERROR: cannot open store: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	start := time.Now()
 	err = store.Delete(string(safeKey))
-	logger.Printf("DELETE operation took %s", time.Since(start))
+	logger.Printf("DELETE operation took %s\n", time.Since(start))
 	if err != nil {
-		logger.Printf("ERROR: cannot delete key: %v", err)
+		logger.Printf("ERROR: cannot delete key: %v\n", err)
 		w.WriteHeader(http.StatusNotFound)
 	}
 }
@@ -189,16 +193,16 @@ func AddKeyHandler(w http.ResponseWriter, r *http.Request, p spinhttp.Params) {
 
 	store, err := kv.OpenStore(storeName)
 	if err != nil {
-		logger.Printf("ERROR: cannot open store: %v", err)
+		logger.Printf("ERROR: cannot open store: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	start := time.Now()
 	err = store.Set(input.Key, []byte(input.Value))
-	logger.Printf("SET operation took %s", time.Since(start))
+	logger.Printf("SET operation took %s\n", time.Since(start))
 	if err != nil {
-		logger.Printf("ERROR: cannot add key: %v", err)
+		logger.Printf("ERROR: cannot add key: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -241,7 +245,7 @@ func BasicAuth(h spinhttp.RouterHandle, requiredUser, requiredPassword string) s
 func GetCredentials() (string, string, error) {
 	store, err := kv.OpenStore("default")
 	if err != nil {
-		logger.Printf("ERROR: cannot open store: %v", err)
+		logger.Printf("ERROR: cannot open store: %v\n", err)
 		return "", "", fmt.Errorf("error opening store: %v", err)
 	}
 
@@ -262,8 +266,8 @@ func GetCredentials() (string, string, error) {
 
 		store.Set(KV_STORE_CREDENTIALS_KEY, []byte(defaultUser+":"+defaultPassword))
 
-		logger.Printf("Default user: %v", defaultUser)
-		logger.Printf("Default password: %v", defaultPassword)
+		logger.Printf("Default user: %v\n", defaultUser)
+		logger.Printf("Default password: %v\n", defaultPassword)
 		logger.Printf("This is a randomly generated username and password pair. To change it, please add a `credentials` key in the default store with the value `username:password`. If you delete the credential pair, the next request will generate a new random set.")
 
 		return defaultUser, defaultPassword, nil
